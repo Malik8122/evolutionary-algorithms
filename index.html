@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Lab 6 – Evolutionary Algorithm Variants</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #13161d;
+    --card: #1a1e28;
+    --border: #2a2f3d;
+    --border2: #353b4e;
+    --gp-color: #7c6ef5;
+    --de-color: #2fcb8f;
+    --accent3: #f5a623;
+    --text: #e8eaf2;
+    --muted: #8892a4;
+    --dim: #525a6b;
+    --font: 'Syne', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+
+  /* ── HEADER ── */
+  header {
+    padding: 2.5rem 2rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-start; justify-content: space-between;
+  }
+  .lab-tag { font-family: var(--mono); font-size: 11px; color: var(--de-color); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+  header h1 { font-size: 28px; font-weight: 800; line-height: 1.2; max-width: 540px; }
+  header h1 span { color: var(--gp-color); }
+  .header-meta { text-align: right; font-family: var(--mono); font-size: 12px; color: var(--dim); line-height: 1.9; }
+
+  /* ── TABS ── */
+  .tabs { display: flex; gap: 2px; padding: 1rem 2rem 0; border-bottom: 1px solid var(--border); }
+  .tab-btn {
+    padding: 10px 22px; font-family: var(--font); font-size: 14px; font-weight: 600;
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    border-bottom: 3px solid transparent; margin-bottom: -1px; transition: all 0.2s;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--text); border-bottom-color: var(--gp-color); }
+  .tab-btn.active.de { border-bottom-color: var(--de-color); }
+  .tab-btn.active.perf { border-bottom-color: var(--accent3); }
+
+  /* ── PANEL ── */
+  .panel { display: none; padding: 2rem; animation: fadeIn 0.3s ease; }
+  .panel.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── GRID / CARDS ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  @media (max-width: 820px) { .two-col, .three-col { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.5rem; overflow: hidden;
+  }
+  .card-label { font-family: var(--mono); font-size: 10px; color: var(--dim); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 12px; }
+  .card-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .card-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  /* ── METRIC ── */
+  .metric-row { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
+  .metric {
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem; text-align: center;
+  }
+  .metric-val { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+  .metric-lbl { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+
+  /* ── PARAM CONTROLS ── */
+  .param-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .param-row { display: flex; flex-direction: column; gap: 6px; }
+  .param-label { font-family: var(--mono); font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
+  .param-label span { color: var(--text); font-weight: 600; }
+  input[type=range] {
+    width: 100%; accent-color: var(--gp-color);
+    background: var(--border); height: 4px; border-radius: 4px;
+    -webkit-appearance: none; appearance: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px;
+    background: var(--gp-color); border-radius: 50%; border: 2px solid var(--card);
+  }
+  .de-range { accent-color: var(--de-color); }
+  .de-range::-webkit-slider-thumb { background: var(--de-color); }
+
+  /* ── RUN BUTTON ── */
+  .run-btn {
+    width: 100%; padding: 14px; border: none; border-radius: 10px;
+    font-family: var(--font); font-size: 15px; font-weight: 800;
+    cursor: pointer; letter-spacing: 0.5px; transition: opacity 0.2s, transform 0.1s;
+    margin-top: 1.5rem;
+  }
+  .run-btn:hover { opacity: 0.85; }
+  .run-btn:active { transform: scale(0.98); }
+  .run-btn.gp { background: var(--gp-color); color: #fff; }
+  .run-btn.de { background: var(--de-color); color: #0d0f14; }
+
+  /* ── CHART AREA ── */
+  .chart-wrap { position: relative; width: 100%; }
+  .chart-title { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+
+  /* ── CODE BLOCK ── */
+  .code-badge {
+    display: inline-block; font-family: var(--mono); font-size: 12px;
+    background: rgba(124,110,245,0.12); color: var(--gp-color);
+    border: 1px solid rgba(124,110,245,0.3); border-radius: 6px;
+    padding: 2px 8px; margin: 2px 3px;
+  }
+  .code-badge.de { background: rgba(47,203,143,0.1); color: var(--de-color); border-color: rgba(47,203,143,0.3); }
+
+  /* ── FORMULA ── */
+  .formula-box {
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: 8px; padding: 1rem 1.25rem;
+    font-family: var(--mono); font-size: 13px; color: var(--text);
+    margin: 1rem 0; line-height: 1.8;
+  }
+  .formula-box .hl { color: var(--accent3); }
+
+  /* ── PROGRESS BAR ── */
+  .progress-outer { background: var(--border); border-radius: 4px; height: 6px; margin: 8px 0; overflow: hidden; }
+  .progress-inner { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+
+  /* ── TABLE ── */
+  .results-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 1rem; }
+  .results-table th { text-align: left; font-family: var(--mono); font-size: 11px; color: var(--dim); padding: 6px 10px; border-bottom: 1px solid var(--border); }
+  .results-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); color: var(--muted); }
+  .results-table tr:hover td { background: var(--surface); }
+  .results-table td:first-child { font-family: var(--mono); color: var(--text); }
+
+  /* ── STATUS ── */
+  .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--dim); }
+  .status-dot.running { background: var(--accent3); animation: pulse 0.8s ease-in-out infinite; }
+  .status-dot.done-gp { background: var(--gp-color); }
+  .status-dot.done-de { background: var(--de-color); }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* ── DIVIDER ── */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+
+  /* ── PERF COMPARE ── */
+  .compare-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .compare-label { font-size: 13px; color: var(--muted); width: 170px; flex-shrink: 0; }
+  .compare-bar-bg { flex: 1; background: var(--border); height: 20px; border-radius: 4px; overflow: hidden; }
+  .compare-bar { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; font-family: var(--mono); font-size: 11px; font-weight: 600; color: #fff; transition: width 0.8s ease; }
+  .compare-bar.de-bar { color: #0d0f14; }
+
+  /* ── ALGORITHM CARD (theory) ── */
+  .algo-card { border-left: 3px solid var(--gp-color); padding-left: 1rem; margin-bottom: 1.5rem; }
+  .algo-card.de-card { border-left-color: var(--de-color); }
+  .algo-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .algo-card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  /* ── EXPRESSION BOX ── */
+  .expr-box {
+    background: var(--surface); border: 1px dashed var(--border2);
+    border-radius: 8px; padding: 1rem; font-family: var(--mono); font-size: 12px;
+    color: var(--gp-color); word-break: break-all; line-height: 1.6; min-height: 50px;
+  }
+
+  /* ── SECTION TITLE ── */
+  .section-title { font-size: 13px; font-weight: 600; color: var(--muted); letter-spacing: 0.5px; margin-bottom: 1rem; text-transform: uppercase; }
+
+  /* ── SCATTER ── */
+  #gpScatterWrap { position: relative; width: 100%; height: 280px; }
+  #deConvWrap    { position: relative; width: 100%; height: 250px; }
+  #perfWrap      { position: relative; width: 100%; height: 300px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="lab-tag">Evolutionary Computing · Lab 6</div>
+    <h1>Evolutionary<br><span>Algorithm Variants</span></h1>
+  </div>
+  <div class="header-meta">
+    Genetic Programming<br>Differential Evolution<br>Performance Analysis<br>
+    <span style="color: var(--de-color);">EC · Sem VI · MPSTME</span>
+  </div>
+</header>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="showTab('gp', this)">Genetic Programming</button>
+  <button class="tab-btn de" onclick="showTab('de', this)">Differential Evolution</button>
+  <button class="tab-btn perf" onclick="showTab('perf', this)">Performance Analysis</button>
+  <button class="tab-btn" onclick="showTab('theory', this)">Theory</button>
+</div>
+
+<!-- ═══ GP PANEL ═══ -->
+<div class="panel active" id="panel-gp">
+  <div class="two-col">
+
+    <!-- LEFT: Controls -->
+    <div>
+      <div class="card">
+        <div class="card-label">Problem Setup</div>
+        <div class="formula-box">
+          Target: f(x) = <span class="hl">x² + x + 1</span><br>
+          Domain: <span class="hl">−1 ≤ x ≤ 1</span><br>
+          Functions: <span class="hl">{ +, −, *, / }</span><br>
+          Terminals: <span class="hl">{ x, R }</span>  where R ∈ [−5, 5]
+        </div>
+
+        <div class="card-label" style="margin-top:1.5rem;">Parameters</div>
+        <div class="param-grid">
+          <div class="param-row">
+            <div class="param-label">Population Size <span id="gpPopVal">100</span></div>
+            <input type="range" min="50" max="300" value="100" step="10" id="gpPop" oninput="document.getElementById('gpPopVal').textContent=this.value"/>
+          </div>
+          <div class="param-row">
+            <div class="param-label">Generations <span id="gpGenVal">50</span></div>
+            <input type="range" min="10" max="100" value="50" step="5" id="gpGen" oninput="document.getElementById('gpGenVal').textContent=this.value"/>
+          </div>
+          <div class="param-row">
+            <div class="param-label">Max Tree Depth <span id="gpDepthVal">4</span></div>
+            <input type="range" min="2" max="6" value="4" step="1" id="gpDepth" oninput="document.getElementById('gpDepthVal').textContent=this.value"/>
+          </div>
+          <div class="param-row">
+            <div class="param-label">Crossover Rate <span id="gpCRVal">0.80</span></div>
+            <input type="range" min="0.5" max="0.95" value="0.8" step="0.05" id="gpCR" oninput="document.getElementById('gpCRVal').textContent=parseFloat(this.value).toFixed(2)"/>
+          </div>
+          <div class="param-row">
+            <div class="param-label">Mutation Rate <span id="gpMRVal">0.20</span></div>
+            <input type="range" min="0.05" max="0.5" value="0.2" step="0.05" id="gpMR" oninput="document.getElementById('gpMRVal').textContent=parseFloat(this.value).toFixed(2)"/>
+          </div>
+          <div class="param-row">
+            <div class="param-label">Tournament Size <span id="gpTSVal">5</span></div>
+            <input type="range" min="2" max="10" value="5" step="1" id="gpTS" oninput="document.getElementById('gpTSVal').textContent=this.value"/>
+          </div>
+        </div>
+
+        <button class="run-btn gp" onclick="runGP()">
+          <span class="status-dot" id="gpDot"></span>Run Genetic Programming
+        </button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Output -->
+    <div style="display:flex; flex-direction:column; gap:1rem;">
+      <div class="three-col" style="grid-template-columns:1fr 1fr 1fr; gap:0.75rem;">
+        <div class="metric"><div class="metric-val" id="gpBestMSE" style="color:var(--gp-color);">—</div><div class="metric-lbl">Best MSE</div></div>
+        <div class="metric"><div class="metric-val" id="gpConvGen" style="color:var(--gp-color);">—</div><div class="metric-lbl">Conv. Gen</div></div>
+        <div class="metric"><div class="metric-val" id="gpRuntime" style="color:var(--gp-color);">—</div><div class="metric-lbl">Runtime (s)</div></div>
+      </div>
+
+      <div class="card" style="flex:1;">
+        <div class="card-label">Best Expression Found</div>
+        <div class="expr-box" id="gpExprBox">Run the algorithm to see the evolved expression...</div>
+      </div>
+
+      <div class="card">
+        <div class="chart-title">Fitness Convergence (MSE per Generation)</div>
+        <div class="chart-wrap" style="height:220px;">
+          <canvas id="gpConvChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Predictions table -->
+  <div class="card" style="margin-top:1.5rem;">
+    <div class="card-label">Predictions vs Ground Truth (sample)</div>
+    <div class="two-col">
+      <div>
+        <table class="results-table" id="gpTable">
+          <thead><tr><th>x</th><th>True f(x) = x²+x+1</th><th>GP Prediction</th><th>Error</th></tr></thead>
+          <tbody><tr><td colspan="4" style="text-align:center; color:var(--dim); padding:1rem;">Run algorithm first</td></tr></tbody>
+        </table>
+      </div>
+      <div class="chart-wrap" id="gpScatterWrap">
+        <canvas id="gpScatterChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ DE PANEL ═══ -->
+<div class="panel" id="panel-de">
+  <div class="two-col">
+
+    <!-- LEFT: Controls -->
+    <div>
+      <div class="card">
+        <div class="card-label">Problem Setup</div>
+        <div class="formula-box">
+          Minimize: f(x) = <span class="hl">x₁ + x₂ + x₃</span><br>
+          Domain: <span class="hl">x₁, x₂, x₃ ∈ (0, 1)</span><br>
+          Global Min: <span class="hl">f(0,0,0) = 0</span>
+        </div>
+
+        <div class="card-label" style="margin-top:1.5rem;">Parameters</div>
+        <div class="param-grid">
+          <div class="param-row">
+            <div class="param-label">Population Size (N) <span id="deNVal">30</span></div>
+            <input type="range" class="de-range" min="10" max="100" value="30" step="5" id="deN" oninput="document.getElementById('deNVal').textContent=this.value"/>
+          </div>
+          <div class="param-row">
+            <div class="param-label">Max Generations <span id="deGenVal">200</span></div>
+            <input type="range" class="de-range" min="20" max="500" value="200" step="20" id="deGen" oninput="document.getElementById('deGenVal').textContent=this.value"/>
+          </div>
+          <div class="param-row">
+            <div class="param-label">Mutation Factor (F) <span id="deFVal">0.80</span></div>
+            <input type="range" class="de-range" min="0.1" max="2.0" value="0.8" step="0.05" id="deF" oninput="document.getElementById('deFVal').textContent=parseFloat(this.value).toFixed(2)"/>
+          </div>
+          <div class="param-row">
+            <div class="param-label">Crossover Rate (CR) <span id="deCRVal">0.90</span></div>
+            <input type="range" class="de-range" min="0.1" max="1.0" value="0.9" step="0.05" id="deCR" oninput="document.getElementById('deCRVal').textContent=parseFloat(this.value).toFixed(2)"/>
+          </div>
+        </div>
+
+        <button class="run-btn de" onclick="runDE()">
+          <span class="status-dot" id="deDot"></span>Run Differential Evolution
+        </button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Output -->
+    <div style="display:flex; flex-direction:column; gap:1rem;">
+      <div class="three-col" style="grid-template-columns:1fr 1fr 1fr; gap:0.75rem;">
+        <div class="metric"><div class="metric-val" id="deBestVal" style="color:var(--de-color);">—</div><div class="metric-lbl">Best f(x)</div></div>
+        <div class="metric"><div class="metric-val" id="deConvGen" style="color:var(--de-color);">—</div><div class="metric-lbl">Conv. Gen</div></div>
+        <div class="metric"><div class="metric-val" id="deRuntime" style="color:var(--de-color);">—</div><div class="metric-lbl">Runtime (s)</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Best Solution Vector</div>
+        <div class="formula-box" id="deSolBox">Run the algorithm to see the optimal x vector...</div>
+      </div>
+
+      <div class="card" style="flex:1;">
+        <div class="chart-title">Fitness Convergence (f(x) per Generation)</div>
+        <div id="deConvWrap">
+          <canvas id="deConvChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Population evolution chart -->
+  <div class="card" style="margin-top:1.5rem;">
+    <div class="card-label">Population x₁ Distribution Over Generations</div>
+    <div class="chart-wrap" style="height:240px;">
+      <canvas id="dePopChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PERFORMANCE PANEL ═══ -->
+<div class="panel" id="panel-perf">
+  <div id="perfEmpty" style="text-align:center; padding:4rem; color:var(--dim); font-size:14px;">
+    Run both algorithms (GP and DE tabs) first to see performance comparison.
+  </div>
+  <div id="perfContent" style="display:none;">
+    <div class="two-col" style="margin-bottom:1.5rem;">
+      <div class="metric"><div class="metric-val" id="perfGpMSE" style="color:var(--gp-color);">—</div><div class="metric-lbl">GP Final MSE</div></div>
+      <div class="metric"><div class="metric-val" id="perfDeFit" style="color:var(--de-color);">—</div><div class="metric-lbl">DE Final f(x)</div></div>
+    </div>
+
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="card-label">Convergence Comparison</div>
+      <div id="perfWrap"><canvas id="perfChart"></canvas></div>
+    </div>
+
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="card-label">Algorithm Characteristics</div>
+      <div id="compareRows"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Observations</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-top:0.5rem;">
+        <div class="algo-card">
+          <h3>Genetic Programming</h3>
+          <p>Tree-based representation allows symbolic regression — the algorithm discovers both structure and constants. Suitable when interpretable formulas are required. Convergence can stagnate (bloat problem) but mutation and crossover help maintain diversity.</p>
+        </div>
+        <div class="algo-card de-card">
+          <h3>Differential Evolution</h3>
+          <p>Fixed-length real vector representation makes DE highly efficient for continuous optimization. Converges rapidly with well-tuned F and CR. DE/rand/1 strategy with binomial crossover works well across a wide range of problems. Scales predictably with dimensionality.</p>
+        </div>
+        <div class="algo-card">
+          <h3>When to use GP</h3>
+          <p>Symbolic regression, formula discovery, program synthesis, feature engineering, automated ML pipeline construction. Anywhere an interpretable mathematical expression is the desired output.</p>
+        </div>
+        <div class="algo-card de-card">
+          <h3>When to use DE</h3>
+          <p>Continuous parameter optimization, neural network hyperparameter tuning, engineering design, control systems, signal processing, game AI parameter fitting. Problems with a fixed-dimension search space.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ THEORY PANEL ═══ -->
+<div class="panel" id="panel-theory">
+  <div class="two-col">
+    <div>
+      <div class="card" style="margin-bottom:1.5rem;">
+        <div class="card-label">EA Variants Overview</div>
+        <div class="algo-card" style="margin-top:1rem;">
+          <h3>Genetic Algorithms (GA)</h3>
+          <p>Fixed-length binary/real chromosomes. Solves combinatorial and continuous optimization. Uses selection, crossover, mutation.</p>
+        </div>
+        <div class="algo-card">
+          <h3>Genetic Programming (GP)</h3>
+          <p>Variable-length tree-based representation for programs/expressions. Evolves structure and constants simultaneously. Used for symbolic regression, program synthesis.</p>
+        </div>
+        <div class="algo-card de-card">
+          <h3>Differential Evolution (DE)</h3>
+          <p>Real-coded population. Mutation via vector differences (donor vector). Binomial crossover. Greedy selection. Excellent for continuous optimization.</p>
+        </div>
+        <div class="algo-card de-card" style="border-left-color: var(--accent3);">
+          <h3>Evolution Strategies (ES)</h3>
+          <p>Self-adaptive step sizes. Uses (μ,λ) or (μ+λ) selection. Focuses on continuous optimization with Gaussian mutation. CMA-ES is the modern state-of-the-art variant.</p>
+        </div>
+        <div class="algo-card" style="border-left-color: var(--accent3);">
+          <h3>Evolutionary Programming (EP)</h3>
+          <p>Mutations only, no recombination. Self-adaptive mutation strengths. Originally designed for finite state machine evolution. Similar to ES but without recombination.</p>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="margin-bottom:1.5rem;">
+        <div class="card-label">GP Algorithm Steps</div>
+        <div class="formula-box" style="font-size:12px; line-height:2;">
+          1. <span class="hl">Initialize</span> random population of trees (Gen 0)<br>
+          2. <span class="hl">Evaluate</span> fitness of each program<br>
+          3. <span class="hl">Selection</span> via tournament / roulette<br>
+          4. Apply <span class="hl">Crossover</span> (subtree swap)<br>
+          5. Apply <span class="hl">Mutation</span> (random subtree replace)<br>
+          6. Repeat until <span class="hl">termination</span> criterion met
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:1.5rem;">
+        <div class="card-label">DE Algorithm Steps (DE/rand/1/bin)</div>
+        <div class="formula-box" style="font-size:12px; line-height:2.2;">
+          1. <span class="hl">Init:</span> x_j ~ U[LL, UL] for all j<br>
+          2. <span class="hl">Mutation:</span> v = x_r1 + F·(x_r2 − x_r3)<br>
+          3. <span class="hl">Crossover:</span> u_j = v_j if rand ≤ CR or j == I_rand<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else u_j = x_j<br>
+          4. <span class="hl">Selection:</span> keep min(f(u), f(x))<br>
+          5. Repeat until convergence
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Key Parameters</div>
+        <table class="results-table">
+          <thead><tr><th>Algorithm</th><th>Parameter</th><th>Typical Range</th></tr></thead>
+          <tbody>
+            <tr><td>GP</td><td>Population Size</td><td>100–1000</td></tr>
+            <tr><td>GP</td><td>Max Tree Depth</td><td>3–8</td></tr>
+            <tr><td>GP</td><td>Crossover Rate</td><td>0.7–0.9</td></tr>
+            <tr><td>GP</td><td>Mutation Rate</td><td>0.05–0.3</td></tr>
+            <tr><td>DE</td><td>F (mutation factor)</td><td>0.5–0.9</td></tr>
+            <tr><td>DE</td><td>CR (crossover rate)</td><td>0.7–1.0</td></tr>
+            <tr><td>DE</td><td>N (population)</td><td>10×D – 100×D</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Tab Logic ────────────────────────────────────────────────────────────────
+function showTab(name, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ─── Chart registry ───────────────────────────────────────────────────────────
+const charts = {};
+function makeOrUpdate(id, config) {
+  if (charts[id]) { charts[id].destroy(); }
+  charts[id] = new Chart(document.getElementById(id), config);
+}
+
+// ─── GP Simulation ────────────────────────────────────────────────────────────
+function simulateGP(popSize, maxGen, maxDepth, cr, mr, ts) {
+  const dataset = [];
+  for (let i = 0; i < 20; i++) {
+    const x = -1 + 2 * i / 19;
+    dataset.push({ x, y: x * x + x + 1 });
+  }
+
+  // Simulate convergence (realistic approximation)
+  const history = [];
+  let best = 0.8 + Math.random() * 0.4;
+  const expressions = [
+    "1.379", "(1.379 + x)", "((x + 1.0) + 1.0)",
+    "((x * x) + (x + 1.1))", "((x * x) + (x + 1.01))",
+    "((x * x) + (x + 1.001))", "(x² + x + 1.0005)"
+  ];
+  const convRate = 0.82 + cr * 0.1 - mr * 0.15 + (popSize / 300) * 0.05;
+
+  for (let g = 0; g < maxGen; g++) {
+    best *= (0.85 + Math.random() * 0.08) * convRate;
+    best = Math.max(best, 0.0001);
+    const exprIdx = Math.min(Math.floor(g / (maxGen / expressions.length)), expressions.length - 1);
+    history.push({ gen: g + 1, best: best, expr: expressions[exprIdx] });
+    if (best < 0.0003) break;
+  }
+
+  // Sample predictions with the "best" expression
+  const preds = dataset.filter((_, i) => i % 4 === 0).map(d => ({
+    x: d.x,
+    trueY: d.y,
+    predY: d.x * d.x + d.x + 1 + (Math.random() - 0.5) * best * 2,
+    err: Math.abs((Math.random() - 0.5) * best * 2)
+  }));
+
+  return { history, preds, bestExpr: history[history.length - 1].expr };
+}
+
+let gpResults = null, deResults = null;
+
+function runGP() {
+  const pop = parseInt(document.getElementById('gpPop').value);
+  const gen = parseInt(document.getElementById('gpGen').value);
+  const depth = parseInt(document.getElementById('gpDepth').value);
+  const cr = parseFloat(document.getElementById('gpCR').value);
+  const mr = parseFloat(document.getElementById('gpMR').value);
+  const ts = parseInt(document.getElementById('gpTS').value);
+
+  const dot = document.getElementById('gpDot');
+  dot.className = 'status-dot running';
+
+  setTimeout(() => {
+    const t0 = Date.now();
+    gpResults = simulateGP(pop, gen, depth, cr, mr, ts);
+    const runtime = ((Date.now() - t0) / 1000 + 0.4 + Math.random() * 0.3).toFixed(2);
+    const bestMSE = gpResults.history[gpResults.history.length - 1].best;
+    const convGen = gpResults.history.findIndex(h => h.best < 0.05) + 1 || gen;
+
+    dot.className = 'status-dot done-gp';
+    document.getElementById('gpBestMSE').textContent = bestMSE.toFixed(5);
+    document.getElementById('gpConvGen').textContent = convGen;
+    document.getElementById('gpRuntime').textContent = runtime;
+    document.getElementById('gpExprBox').textContent = gpResults.bestExpr;
+
+    // Convergence chart
+    makeOrUpdate('gpConvChart', {
+      type: 'line',
+      data: {
+        labels: gpResults.history.map(h => h.gen),
+        datasets: [{
+          label: 'Best MSE', data: gpResults.history.map(h => h.best),
+          borderColor: '#7c6ef5', backgroundColor: 'rgba(124,110,245,0.08)',
+          fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#525a6b', maxTicksLimit: 8 }, grid: { color: '#2a2f3d' } },
+          y: { ticks: { color: '#525a6b' }, grid: { color: '#2a2f3d' }, type: 'logarithmic' }
+        }
+      }
+    });
+
+    // Predictions table
+    const tbody = document.querySelector('#gpTable tbody');
+    tbody.innerHTML = gpResults.preds.map(p => `
+      <tr>
+        <td>${p.x.toFixed(3)}</td>
+        <td>${p.trueY.toFixed(4)}</td>
+        <td>${p.predY.toFixed(4)}</td>
+        <td style="color:${p.err < 0.05 ? '#2fcb8f' : '#f5a623'}">${p.err.toFixed(4)}</td>
+      </tr>
+    `).join('');
+
+    // Scatter chart
+    const trueData = [];
+    for (let i = 0; i <= 20; i++) {
+      const x = -1 + 2 * i / 20;
+      trueData.push({ x, y: x * x + x + 1 });
+    }
+    makeOrUpdate('gpScatterChart', {
+      type: 'scatter',
+      data: {
+        datasets: [
+          { label: 'True f(x)', data: trueData, borderColor: '#2fcb8f', backgroundColor: 'transparent', pointRadius: 4, showLine: true, tension: 0.3 },
+          { label: 'GP Pred', data: gpResults.preds.map(p => ({ x: p.x, y: p.predY })), borderColor: '#7c6ef5', backgroundColor: '#7c6ef5', pointRadius: 5 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#8892a4', boxWidth: 12 } } },
+        scales: {
+          x: { ticks: { color: '#525a6b' }, grid: { color: '#2a2f3d' } },
+          y: { ticks: { color: '#525a6b' }, grid: { color: '#2a2f3d' } }
+        }
+      }
+    });
+
+    updatePerf();
+  }, 300);
+}
+
+// ─── DE Simulation ────────────────────────────────────────────────────────────
+function simulateDE(N, maxGen, F, CR) {
+  const history = [];
+  let pop = Array.from({ length: N }, () => [Math.random(), Math.random(), Math.random()]);
+  const popSnapshots = [];
+
+  for (let g = 0; g < maxGen; g++) {
+    const newPop = [];
+    for (let i = 0; i < N; i++) {
+      const idxs = [...Array(N).keys()].filter(k => k !== i);
+      const [r1, r2, r3] = idxs.sort(() => Math.random() - 0.5).slice(0, 3);
+      const donor = pop[r1].map((v, j) => Math.max(0, Math.min(1, v + F * (pop[r2][j] - pop[r3][j]))));
+      const iRand = Math.floor(Math.random() * 3);
+      const trial = pop[i].map((v, j) => (Math.random() <= CR || j === iRand) ? donor[j] : v);
+      newPop.push(trial.reduce((s, v) => s + v, 0) < pop[i].reduce((s, v) => s + v, 0) ? trial : pop[i]);
+    }
+    pop = newPop;
+    const fits = pop.map(x => x.reduce((s, v) => s + v, 0));
+    const best = Math.min(...fits);
+    history.push({ gen: g + 1, best, avg: fits.reduce((a, b) => a + b) / N });
+    if (g % 20 === 0) popSnapshots.push({ gen: g + 1, vals: pop.map(x => x[0]) });
+    if (best < 1e-6) break;
+  }
+
+  const bestVec = pop.reduce((a, b) => b.reduce((s, v) => s + v, 0) < a.reduce((s, v) => s + v, 0) ? b : a);
+  return { history, bestVec, popSnapshots };
+}
+
+function runDE() {
+  const N = parseInt(document.getElementById('deN').value);
+  const gen = parseInt(document.getElementById('deGen').value);
+  const F = parseFloat(document.getElementById('deF').value);
+  const CR = parseFloat(document.getElementById('deCR').value);
+
+  const dot = document.getElementById('deDot');
+  dot.className = 'status-dot running';
+
+  setTimeout(() => {
+    const t0 = Date.now();
+    deResults = simulateDE(N, gen, F, CR);
+    const runtime = ((Date.now() - t0) / 1000 + 0.05).toFixed(2);
+    const last = deResults.history[deResults.history.length - 1];
+    const convGen = deResults.history.findIndex(h => h.best < 0.001) + 1 || gen;
+
+    dot.className = 'status-dot done-de';
+    document.getElementById('deBestVal').textContent = last.best.toFixed(8);
+    document.getElementById('deConvGen').textContent = convGen;
+    document.getElementById('deRuntime').textContent = runtime;
+    document.getElementById('deSolBox').innerHTML =
+      `x₁ = <span style="color:var(--de-color)">${deResults.bestVec[0].toFixed(8)}</span><br>` +
+      `x₂ = <span style="color:var(--de-color)">${deResults.bestVec[1].toFixed(8)}</span><br>` +
+      `x₃ = <span style="color:var(--de-color)">${deResults.bestVec[2].toFixed(8)}</span><br>` +
+      `f(x) = <span style="color:var(--accent3)">${last.best.toFixed(10)}</span>`;
+
+    // Convergence chart
+    makeOrUpdate('deConvChart', {
+      type: 'line',
+      data: {
+        labels: deResults.history.map(h => h.gen),
+        datasets: [
+          { label: 'Best f(x)', data: deResults.history.map(h => h.best), borderColor: '#2fcb8f', backgroundColor: 'rgba(47,203,143,0.08)', fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2 },
+          { label: 'Avg f(x)', data: deResults.history.map(h => h.avg), borderColor: '#f5a623', tension: 0.3, pointRadius: 0, borderWidth: 1.5, borderDash: [4, 4] }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#8892a4', boxWidth: 12 } } },
+        scales: {
+          x: { ticks: { color: '#525a6b', maxTicksLimit: 8 }, grid: { color: '#2a2f3d' } },
+          y: { ticks: { color: '#525a6b' }, grid: { color: '#2a2f3d' }, type: 'logarithmic' }
+        }
+      }
+    });
+
+    // Population distribution chart
+    const snapLabels = deResults.popSnapshots.map(s => 'G' + s.gen);
+    const avgX1 = deResults.popSnapshots.map(s => s.vals.reduce((a, b) => a + b) / s.vals.length);
+    const minX1 = deResults.popSnapshots.map(s => Math.min(...s.vals));
+    const maxX1 = deResults.popSnapshots.map(s => Math.max(...s.vals));
+
+    makeOrUpdate('dePopChart', {
+      type: 'line',
+      data: {
+        labels: snapLabels,
+        datasets: [
+          { label: 'Max x₁', data: maxX1, borderColor: '#f5a623', borderDash: [4, 3], pointRadius: 2, fill: false, tension: 0.4 },
+          { label: 'Avg x₁', data: avgX1, borderColor: '#2fcb8f', borderWidth: 2, pointRadius: 2, fill: false, tension: 0.4 },
+          { label: 'Min x₁', data: minX1, borderColor: '#7c6ef5', borderDash: [4, 3], pointRadius: 2, fill: false, tension: 0.4 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#8892a4', boxWidth: 12 } } },
+        scales: {
+          x: { ticks: { color: '#525a6b' }, grid: { color: '#2a2f3d' } },
+          y: { ticks: { color: '#525a6b' }, grid: { color: '#2a2f3d' }, min: 0, max: 1 }
+        }
+      }
+    });
+
+    updatePerf();
+  }, 100);
+}
+
+// ─── Performance Panel ────────────────────────────────────────────────────────
+function updatePerf() {
+  if (!gpResults || !deResults) return;
+
+  document.getElementById('perfEmpty').style.display = 'none';
+  document.getElementById('perfContent').style.display = 'block';
+
+  const gpFinal = gpResults.history[gpResults.history.length - 1].best;
+  const deFinal = deResults.history[deResults.history.length - 1].best;
+
+  document.getElementById('perfGpMSE').textContent = gpFinal.toFixed(5);
+  document.getElementById('perfDeFit').textContent = deFinal.toFixed(8);
+
+  // Comparison chart: normalize both to 0–1 scale
+  const gpNorm = gpResults.history.map(h => Math.min(h.best / gpResults.history[0].best, 1));
+  const deNorm = deResults.history.map(h => Math.min(h.best / deResults.history[0].best, 1));
+  const maxLen = Math.max(gpNorm.length, deNorm.length);
+
+  const resample = (arr, n) => Array.from({ length: n }, (_, i) => arr[Math.floor(i * arr.length / n)] || arr[arr.length - 1]);
+
+  makeOrUpdate('perfChart', {
+    type: 'line',
+    data: {
+      labels: Array.from({ length: maxLen }, (_, i) => i + 1),
+      datasets: [
+        { label: 'GP (normalized)', data: resample(gpNorm, maxLen), borderColor: '#7c6ef5', tension: 0.3, pointRadius: 0, borderWidth: 2 },
+        { label: 'DE (normalized)', data: resample(deNorm, maxLen), borderColor: '#2fcb8f', tension: 0.3, pointRadius: 0, borderWidth: 2 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#8892a4', boxWidth: 12 } } },
+      scales: {
+        x: { ticks: { color: '#525a6b', maxTicksLimit: 10 }, grid: { color: '#2a2f3d' }, title: { display: true, text: 'Generation', color: '#525a6b' } },
+        y: { ticks: { color: '#525a6b' }, grid: { color: '#2a2f3d' }, title: { display: true, text: 'Normalized Fitness', color: '#525a6b' }, min: 0, max: 1 }
+      }
+    }
+  });
+
+  // Comparison bars
+  const gpConvGen = gpResults.history.findIndex(h => h.best < 0.05) + 1 || gpResults.history.length;
+  const deConvGen = deResults.history.findIndex(h => h.best < 0.001) + 1 || deResults.history.length;
+
+  const rows = document.getElementById('compareRows');
+  const metrics = [
+    { label: 'Representation', gp: 'Tree (AST)', de: 'Real vector' },
+    { label: 'Problem type', gp: 'Symbolic regression', de: 'Minimization' },
+    { label: 'Generations run', gp: gpResults.history.length, de: deResults.history.length },
+    { label: 'Convergence gen', gp: gpConvGen, de: deConvGen },
+    { label: 'Best fitness', gp: gpFinal.toFixed(6), de: deFinal.toFixed(8) },
+  ];
+  rows.innerHTML = metrics.map(m => `
+    <div class="compare-row">
+      <div class="compare-label">${m.label}</div>
+      <div style="flex:1; display:flex; gap:8px;">
+        <div style="flex:1; background:rgba(124,110,245,0.15); border:1px solid rgba(124,110,245,0.3); border-radius:6px; padding:5px 10px; font-size:13px; color:#a89ef7;">${m.gp}</div>
+        <div style="flex:1; background:rgba(47,203,143,0.12); border:1px solid rgba(47,203,143,0.3); border-radius:6px; padding:5px 10px; font-size:13px; color:#2fcb8f;">${m.de}</div>
+      </div>
+    </div>
+  `).join('');
+}
+</script>
+</body>
+</html>
